@@ -51,7 +51,7 @@ schema_commodity_onto <-
   setObsVar(name = "label",       columns = 1, type = "character") |>
   setObsVar(name = "description", columns = 4, type = "character")
 
-regVocabulary(name         = "commodity",
+regVocabulary(name         = "animal",
               dSeries      = "gpw_onto",
               description  = "livestock commodity vocabulary derived from the LUCKINet land use ontology",
               schema       = schema_commodity_onto,
@@ -62,5 +62,5 @@ regVocabulary(name         = "commodity",
               licence_link = "https://creativecommons.org/licenses/by-sa/4.0/",
               overwrite    = TRUE)
 
-normVocabulary(pattern = "commodity__gpw_onto")
+normVocabulary(pattern = "animal__gpw_onto")
 
