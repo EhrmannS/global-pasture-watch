@@ -68,8 +68,9 @@ normGeometry(pattern = gs[1], beep = 10)
 # 3. tables ----
 #
 schema_nso <-
+  setFilter(rows = .find(pattern = "^Total$", col = 1, invert = TRUE)) |>
   setFilter(rows = .find(pattern = "^Total$", col = 2, invert = TRUE)) |>
-  setFilter(rows = .find(pattern = "^    \\S", col = 2, invert = TRUE)) |>  # drop region rows too
+  setFilter(rows = .find(pattern = "^    \\S", col = 2, invert = TRUE)) |>
   setFormat(na_values = c("", "NA"), decimal = ",") |>
   setIDVar(name = "animal",  columns = 1) |>
   setIDVar(name = "ADM0",    value = thisNation) |>
@@ -113,12 +114,13 @@ input <- read.csv(file = paste0(db_path, "_censusDB/tables/stage2/Mongolia_ADM2_
 # you need to set up a function to filter out all rows that are not ADM2 territories and everything is as in the demonstration.
 
 schema_nso <-
-  setFilter(rows = .find(pattern = "^Total$", col = 1, invert = TRUE)) |>
+  setFilter(rows = .find(pattern = "^Total$", col = 1, invert = TRUE)) |> # filter out Totals in columns 1
+  setFilter(rows = .find(pattern = "^Total$", col = 2, invert = TRUE)) |> # ... and two
+  setFilter(rows = .find(pattern = "^    \\S", col = 2, invert = TRUE)) |>  # drop region rows too
   setFormat(na_values = c("", "NA"), decimal = ",") |>
   setIDVar(name = "animal",  columns = 1) |>
   setIDVar(name = "ADM0",    value = thisNation) |>
-  setIDVar(name = "ADM1",    columns = 2, split = "^    (\\S.*?)\\s*$") |>
-  setIDVar(name = "ADM2",    columns = 2, split = "^            (\\S.*?)\\s*$") |>
+  setIDVar(name = "ADM1",    columns = 2, split = "^            (\\S.*?)\\s*$") |> # regular expression to split "      X" on the last whitespace
   setIDVar(name = "year",    columns = .find(fun = is.numeric, row = 2), rows = 2) |>
   setIDVar(name = "method",  value = "census") |>
   setObsVar(name = "number_heads", columns = .find(fun = is.numeric, row = 2), factor = 1000)
