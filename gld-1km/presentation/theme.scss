@@ -1,0 +1,531 @@
+/*-- scss:defaults --*/
+
+// =============================================================
+// resonantia theme — beige paper, sharp dark borders, Inter
+// Mirrors resonantia.earth visual language
+// =============================================================
+
+// Colours — pulled from src/layouts/Layout.astro
+$beige:        #E8DCC8;   // page background
+$beige-light:  #F2EDE3;   // inline code background, soft surface
+$ink:          #2C3E2E;   // dark forest — text, borders, strong
+$muted:        #5A6B5A;   // taglines, meta
+$tan:          #C8BDA8;   // soft separator
+$teal:         #5B9FAD;   // primary accent (link hover)
+$sage:         #6B8E6F;   // secondary (inline code text)
+
+// Aliases kept so existing rules keep compiling
+$forest:    $ink;
+$moss:      $tan;
+$cream:     $beige;
+$accent:    $teal;
+$code-bg:   #1E2A1F;
+$code-fg:   #E8F0E1;
+
+// Body / surface
+$body-bg:                $beige !default;
+$body-color:             $ink !default;
+$link-color:             $ink !default;
+$selection-bg:           $teal !default;
+
+// Headings — single typeface, no serif
+$presentation-heading-font: "Inter", "Helvetica Neue", Arial, sans-serif !default;
+$presentation-heading-color: $ink !default;
+$presentation-heading-font-weight: 700 !default;
+$presentation-heading-text-shadow: none !default;
+
+// Body type
+$presentation-font-size-root: 32px !default;
+$font-family-sans-serif: "Inter", "Helvetica Neue", Arial, sans-serif !default;
+$font-family-monospace:  "JetBrains Mono", "Fira Code", "Source Code Pro", Consolas, monospace !default;
+
+/*-- scss:rules --*/
+
+.reveal {
+  font-family: $font-family-sans-serif;
+  color: $ink;
+}
+
+// Headings — Inter, bold, tight
+.reveal h1, .reveal h2, .reveal h3 {
+  font-family: $presentation-heading-font;
+  color: $ink;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin-bottom: 0.4em;
+}
+.reveal h1 { font-size: 1.9em; }
+.reveal h2 { font-size: 1.5em; }
+.reveal h3 { font-size: 1.15em; }
+
+// Slide subtitle — uppercase editorial label (resonantia.earth meta pattern)
+.reveal .subtitle {
+  font-style: normal;
+  color: $muted;
+  font-size: 0.7em;
+  margin-top: -0.3em;
+  margin-bottom: 1em;
+  font-family: $font-family-sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+// Body paragraphs and lists
+.reveal p, .reveal li {
+  line-height: 1.45;
+}
+.reveal ul, .reveal ol {
+  display: block;
+  margin-left: 1.2em;
+}
+.reveal li {
+  margin-bottom: 0.3em;
+}
+.reveal strong { color: $ink; }
+
+// Code — inline (site pattern: beige-light bg, sage green text)
+.reveal code {
+  font-family: $font-family-monospace;
+  font-size: 0.92em;
+  color: $sage;
+  background: $beige-light;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.reveal pre {
+  box-shadow: none;
+  background: $code-bg;
+  border-radius: 6px;
+  margin: 0.5em 0;
+}
+
+
+.reveal pre code {
+  background: $code-bg;
+  color: $code-fg;
+  padding: 0.9em 1.1em;
+  font-size: 0.55em;
+  line-height: 1.4;
+  border-radius: 6px;
+  display: block;
+  overflow-x: auto;
+}
+
+// Highlight.js token tweaks for our dark code bg
+.reveal pre code .hljs-keyword,
+.reveal pre code .hljs-built_in   { color: #C8E6A0; }
+.reveal pre code .hljs-string     { color: #FFD89C; }
+.reveal pre code .hljs-comment    { color: #88A07B; font-style: italic; }
+.reveal pre code .hljs-number     { color: #FFB7B7; }
+.reveal pre code .hljs-function   { color: #D4F0B0; }
+
+// Tables — for the archetype slides
+.reveal table {
+  border-collapse: collapse;
+  font-family: $font-family-monospace;
+  font-size: 0.55em;
+  margin: 0.6em 0;
+  background: white;
+}
+.reveal table th, .reveal table td {
+  border: 1px solid #C8C8C8;
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.reveal table th {
+  background: $cream;
+  color: $forest;
+  font-weight: 700;
+}
+
+// All level1 "title" slides get the teal underline on h1
+section.title-slide h1 {
+  display: inline-block;
+  border-bottom: 4px solid $teal;
+  padding-bottom: 0.15em;
+}
+
+// Divider slides — Part 1 / Part 2 / Part 3
+section.divider {
+  h1, h2 {
+    color: $ink;
+    font-size: 2.6em;
+    margin-bottom: 0.3em;
+    display: inline-block;
+    border-bottom: 4px solid $teal;
+    padding-bottom: 0.15em;
+  }
+  .part {
+    color: $muted;
+    font-size: 0.9em;
+    margin-bottom: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+  .tagline {
+    color: $muted;
+    font-size: 1em;
+  }
+}
+
+// Title slide
+section.title {
+  text-align: left;
+
+  h1 {
+    color: $ink;
+    font-size: 2.4em;
+    line-height: 1.05;
+    margin-bottom: 0.3em;
+    border-bottom: 4px solid $teal;
+    padding-bottom: 0.15em;
+    display: inline-block;
+  }
+  .tagline {
+    color: $muted;
+    font-size: 1.1em;
+    margin-bottom: 1.5em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .author {
+    color: $ink;
+    font-size: 0.7em;
+    margin-bottom: 0.2em;
+  }
+  .session {
+    color: $muted;
+    font-size: 0.55em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .rule { display: none; }
+}
+
+// Live-demo slide — teal underline on title
+section.live-demo {
+  h1 {
+    color: $ink;
+    font-size: 2.6em;
+    margin-bottom: 0.3em;
+    display: inline-block;
+    border-bottom: 4px solid $teal;
+    padding-bottom: 0.15em;
+  }
+  .part {
+    color: $muted;
+    font-size: 0.9em;
+    margin-bottom: 0.5em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+  .heads-up {
+    color: $teal;
+    font-style: italic;
+    margin-top: 1em;
+  }
+}
+
+// "Back to script" cue — placed in the slide footer area on action slides
+.back-to-script {
+  position: absolute;
+  left: 0;
+  bottom: -20px;
+  font-size: 0.5em;
+  font-weight: 600;
+  font-style: italic;
+  color: $accent;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: $font-family-sans-serif;
+}
+.back-to-script::before {
+  content: "";
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  background: $accent;
+  border-radius: 50%;
+}
+
+// =============================================================
+// Layout primitives — three classes do all the work
+//   .row    — horizontal flow, equal-height children
+//   .col    — vertical flow, snug gap
+//   .box    — bordered content container; optional [title]{.box-title}
+//             modifiers: .box.dark (forest fill), .box.accent (amber stripe)
+// =============================================================
+
+.row {
+  display: flex;
+  flex-direction: row;
+  gap: 1.2em;
+  align-items: stretch;
+}
+.row > * {
+  flex: 1;
+}
+.row > .box {
+  flex: 1;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.box {
+  background: white;
+  border: 3px solid $ink;
+  border-radius: 0;
+  padding: 1em 1.2em;
+  box-sizing: border-box;
+  box-shadow: 6px 6px 0 $sage;
+  font-size: 0.8em;
+}
+.row > .box {
+  height: 100%;
+}
+.box-title {
+  display: block;
+  color: $ink;
+  font-weight: 700;
+  margin-bottom: 0.4em;
+  font-size: 1em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.box.dark {
+  background: transparent;
+  color: $ink;
+  border: 3px solid $ink;
+  box-shadow: 6px 6px 0 $sage;
+}
+.box.dark .box-title {
+  color: $ink;
+}
+.box.accent {
+  border-color: $teal;
+}
+
+// =============================================================
+// Legacy classes (kept while slides are migrated; remove later)
+// =============================================================
+
+// Two-column layout helper
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5em;
+  align-items: stretch;
+}
+.cols.three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+// Card boxes — used in tabshiftr/arealDB intro and the schema_builder slide
+.card {
+  background: white;
+  border: 1px solid $moss;
+  border-left: 6px solid $forest;
+  padding: 1em 1.2em;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+// Only stretch heights when cards live in a column grid (peer alignment)
+.cols > .card {
+  height: 100%;
+}
+// Vertical stack of cards (e.g. "four building blocks")
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+.stack > .card {
+  padding: 0.5em 1em;
+}
+.card h3,
+.card .card-title {
+  margin-top: 0;
+  color: $forest;
+  font-size: 1em;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 0.6em;
+}
+
+// Numbered "step" cards for the country-pattern slide
+.step-card {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 1em;
+  align-items: start;
+  background: white;
+  border: 3px solid $ink;
+  padding: 0.7em 1em;
+  margin-bottom: 0.6em;
+}
+.step-card .num {
+  width: 48px;
+  height: 48px;
+  background: $ink;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: $presentation-heading-font;
+  font-weight: 700;
+  font-size: 1.4em;
+}
+.step-card .body .label {
+  font-family: $font-family-monospace;
+  color: $ink;
+  font-weight: 700;
+  font-size: 0.95em;
+}
+.step-card .body .desc {
+  font-size: 0.7em;
+  color: $ink;
+  margin-top: 0.2em;
+}
+
+// Three-stage flow (stage1 → stage2 → stage3)
+.stages {
+  display: grid;
+  grid-template-columns: 1fr 0.2fr 1fr 0.2fr 1fr;
+  gap: 0.5em;
+  align-items: stretch;
+  margin: 1em 0;
+}
+.stage {
+  background: white;
+  border: 3px solid $ink;
+  text-align: center;
+  overflow: hidden;
+}
+.stage .head {
+  background: $ink;
+  color: white;
+  padding: 0.5em;
+  font-family: $presentation-heading-font;
+  font-weight: 700;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.stage .name {
+  color: $ink;
+  font-family: $presentation-heading-font;
+  font-weight: 700;
+  font-size: 0.95em;
+  margin-top: 0.7em;
+}
+.stage .desc {
+  font-size: 0.65em;
+  padding: 0.4em 1em 1em;
+  color: $ink;
+}
+.box.stage {
+  padding-top: 0;
+
+  .box-title {
+    display: block;
+    background: $ink;
+    color: white;
+    margin: 0 -1.2em 0.8em -1.2em;
+    padding: 0.4em 1.2em;
+    font-size: 0.75em;
+    text-transform: none;
+    letter-spacing: 0.03em;
+    font-weight: 700;
+  }
+}
+
+.stages .arrow,
+.row .arrow {
+  align-self: center;
+  font-size: 1.5em;
+  color: $ink;
+  text-align: center;
+  flex: 0 0 auto !important;
+  padding: 0 0.3em;
+}
+
+// Directory tree block — larger font for readability
+.reveal pre.dir-tree code {
+  font-size: 0.78em;
+  line-height: 1.7;
+}
+
+// Issue-list with bullets (problem slide)
+.issue {
+  margin-bottom: 0.35em;
+  font-size: 0.8em;
+}
+.issue .what {
+  font-weight: 700;
+  color: $ink;
+}
+.issue .what::before {
+  content: "●";
+  color: $teal;
+  margin-right: 0.5em;
+}
+.issue .why {
+  font-size: 0.75em;
+  color: $muted;
+  margin-left: 1.5em;
+  margin-top: 0.1em;
+}
+
+// Closing footer line on many slides
+.footnote {
+  color: $muted;
+  font-size: 0.6em;
+  font-style: normal;
+  text-align: center;
+  margin-top: 1em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+.footnote.green {
+  color: $teal;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-style: italic;
+}
+
+// Slide number styling — discrete bottom-right
+.reveal .slide-number {
+  background: transparent;
+  color: $muted;
+  font-size: 16px;
+  font-family: $font-family-sans-serif;
+}
+
+// archetype-specific bits — uppercase editorial tag
+.archetype-tag {
+  font-family: $font-family-monospace;
+  color: $teal;
+  font-size: 0.75em;
+  font-weight: 700;
+  margin-bottom: 0.6em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// Highlighting cells in archetype mock tables
+.hl-forest { background: $ink !important; color: white !important; font-weight: 700; }
+.hl-moss   { background: $teal !important; color: white !important; }

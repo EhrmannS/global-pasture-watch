@@ -1,0 +1,908 @@
+---
+title: "Building the GPW Livestock Census Database"
+subtitle: "a workshop on tabshiftr and arealDB"
+author: "Steffen Ehrmann · resonantia research gUG"
+format:
+  revealjs:
+    theme: [default, theme.scss]
+    slide-number: c/t
+    incremental: false
+    code-line-numbers: false
+    highlight-style: github-dark
+    width: 1280
+    height: 720
+    margin: 0.06
+    fig-cap-location: bottom
+    transition: none
+    pdf-separate-fragments: false
+    progress: false
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+#| eval: true
+# Loaded once. tabshiftr's example data is used on the archetype slides.
+suppressPackageStartupMessages({
+  library(tabshiftr)
+  library(knitr)
+  library(kableExtra)
+})
+```
+
+
+## The integration problem
+::: {.subtitle}
+areal data come from many sources, none of them are tidy
+:::
+
+::: {.row}
+::: {style="flex: 1.2"}
+
+19 countries · many decades · different formats
+
+::: {.issue}
+[Different file formats]{.what}<br>
+[csv, xlsx, shp, gpkg, dbf, pdf]{.why}
+:::
+
+::: {.issue}
+[Different table layouts]{.what}<br>
+[headers in row 1, 2, or 5; multi-row headers; merged cells]{.why}
+:::
+
+::: {.issue}
+[Different territorial naming]{.what}<br>
+["USA", "United States", "U.S.A." — same place, three IDs]{.why}
+:::
+
+::: {.issue}
+[Different concept vocabularies]{.what}<br>
+["cattle", "bovinos", "existencias bovinas" — same animal]{.why}
+:::
+
+::: {.issue}
+[Sources update]{.what}<br>
+[your hand-cleaned spreadsheet breaks every year]{.why}
+:::
+
+:::
+::: {.box}
+[The cost of doing this by hand]{.box-title}
+
+**Error-prone**
+Hand-edits hide silent typos and column mis-shifts.
+
+**Unreproducible**
+No record of what was changed and why.
+
+**Brittle**
+Next year's update breaks last year's pipeline.
+:::
+:::
+
+## Two packages, one workflow
+
+::: {.row}
+::: {.box}
+[tabshiftr]{.box-title}
+*table reshaping*
+
+Write a **schema** — a formal description of where each variable lives in a raw messy table.
+
+`reorganise()` mechanically applies it to produce a tidy output.
+
+*Same schema, next year's file → same tidy output.*
+:::
+
+::: {.box}
+[arealDB]{.box-title}
+*integration pipeline*
+
+Ingests tables and spatial geometries.
+
+Harmonises territories against a **gazetteer**.
+
+Harmonises concepts against an **ontology**.
+
+Stores everything in a standardised directory.
+:::
+:::
+
+::: {.footnote .green}
+→ tabshiftr makes the table tidy; arealDB makes the database harmonised.
+:::
+
+
+# 1. tabshiftr
+
+::: {.tagline}
+schemas for messy tables
+:::
+
+## The schema is a description, not a script
+
+A schema describes **WHERE** each variable lives in the raw file.
+It does *not* describe **HOW** to reshape — that's `reorganise()`'s job.
+
+<br>
+
+::: {.row}
+::: {}
+**Raw file**
+
+```{r}
+#| eval: true
+#| echo: false
+df <- data.frame(
+  year = c("2008", "2008", "2009"),
+  ADM1 = c("Khentii", "Khentii", "Khentii"),
+  ADM2 = c("Bayan-Adarga", "Batnorov", "Bayan-Adarga"),
+  cattle = c("12450", "9810", "13100"),
+  sheep = c("8230", "11200", "8550")
+)
+kable(df, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 14)
+```
+:::
+
+::: {}
+**Schema** (says where each variable lives)
+
+```r
+setIDVar(name = "year",   columns = 1) |>
+setIDVar(name = "ADM1",   columns = 2) |>
+setIDVar(name = "ADM2",   columns = 3) |>
+setIDVar(name = "animal", columns = c(4, 5),
+                          rows    = 1) |>
+setObsVar(name = "number_heads", columns = c(4, 5))
+```
+:::
+:::
+
+::: {.footnote .green}
+Run `reorganise()` → tidy long table. Same schema works on next year's file.
+:::
+
+## Step zero: read the raw file
+::: {.subtitle}
+as tabshiftr will see it
+:::
+
+```r
+input <- read_csv(file = "path/to/raw.csv",
+                  col_names = FALSE,
+                  col_types = cols(.default = "c"),
+                  trim_ws = FALSE)
+View(input)
+```
+<br>
+
+::: {.row}
+::: {.box}
+[1]{.box-title}
+**`col_names = FALSE`**
+
+Headers count as data — row 1 is row 1.
+:::
+
+::: {.box}
+[2]{.box-title}
+**all character**
+
+No silent type coercion. You decide types via `setObsVar(type = ...)`.
+:::
+
+::: {.box}
+[3]{.box-title}
+**rows & cols from 1**
+
+What you see in `View()` is what the schema addresses.
+:::
+:::
+
+## The four building blocks
+::: {.subtitle}
+set* functions you compose with the pipe
+:::
+
+::: {.col}
+
+::: {.box}
+**`setFormat()`** — How to interpret raw values: decimal separator, thousands separator, NA strings, flags.
+:::
+
+::: {.box}
+**`setFilter()`** — Drop rows or columns before extraction (footnotes, totals, blanks).
+:::
+
+::: {.box}
+**`setIDVar()`** — Identifying (qualitative) variables — what the data is about (year, region, animal).
+:::
+
+::: {.box}
+**`setObsVar()`** — Observed (measured) variables — the numbers (heads, hectares, tonnes).
+:::
+
+:::
+
+## Schema patterns reference
+::: {.subtitle}
+the moves you'll see in real tables
+:::
+
+::: {.row}
+::: {}
+*single column*
+```r
+setIDVar(name = "ADM1", columns = 2)
+```
+
+*implicit (same for whole file)*
+```r
+setIDVar(name = "ADM0", value = "Mongolia")
+```
+
+*wide ID — names spread across columns*
+```r
+setIDVar(name = "animal",
+         columns = c(6:14), rows = 1)
+```
+:::
+
+::: {}
+*obs values + unit factor*
+```r
+setObsVar(name = "heads",
+          columns = 5, factor = 1000)
+```
+
+*listed obs (key/value layout)*
+```r
+setObsVar(name = "heads",
+          key = 3, value = "bovine")
+```
+
+*format + filter quirks*
+```r
+setFormat(decimal = ",", na_values = c("...","-")) |>
+setFilter(rows = .find(pattern = "footnote",
+                       col = 1), invert = TRUE)
+```
+:::
+:::
+
+## .find() and step-by-step debugging
+`.find()` — dynamic cell location when positions vary across files
+
+```r
+.find(pattern = "cattle")                          # any row, any col
+.find(fun = is.numeric, col = 1)                   # only column 1
+.find(pattern = "total", col = 1, relative = TRUE) # relative to cluster top-left
+.find(pattern = "^total$", col = 1, invert = TRUE) # everything except matches
+```
+
+Debugging a schema step by step
+
+```r
+schema_val <- validateSchema(schema = schema, input = input)   # resolve .find() calls
+input_val  <- validateInput(schema = schema_val, input = input) # apply filters
+
+getIDVars(schema = schema_val, input = input_val)      # one element per cluster
+getObsVars(schema = schema_val, input = input_val)
+getClusterVar(schema = schema_val, input = input_val)
+
+reorganise(input = input, schema = schema)             # full output
+```
+
+## schema_builder() — the easy way
+
+::: {.subtitle}
+an interactive Shiny app for building schemas
+:::
+
+::: {.row}
+::: {.box}
+[How it works]{.box-title}
+
+1. Load your raw table:
+   `schema_builder(input)`
+
+2. Point and click on cells in the table view:
+    - mark ID variables
+    - mark observed variables
+    - mark clusters and filters
+
+3. App generates the schema and previews `reorganise()` output live.
+
+4. Copy the generated schema code into your script.
+:::
+
+::: {.box}
+[Why use it]{.box-title}
+
+**Faster.** No looking up argument names; the app exposes the right options for what you click.
+
+**Visual.** You see what you've assigned and what's still ambiguous before running anything.
+
+**Same output.** Generates ordinary `set*()` calls. The schema is portable, version-controllable, scriptable.
+:::
+:::
+
+## Archetype 1 — tidy
+
+::: {.subtitle}
+one row per observation; headers in row 1 — schema is almost trivial
+:::
+
+::: {.archetype-tag}
+tabs2shift\$tidy
+:::
+
+::: {.row}
+::: {}
+**Raw input**
+
+```{r}
+#| eval: true
+#| echo: false
+kable(tabs2shift$tidy, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 13)
+```
+:::
+
+::: {}
+**Schema**
+
+```r
+setIDVar(name = "territories", columns = 1) |>
+setIDVar(name = "year",        columns = 2) |>
+setIDVar(name = "commodities", columns = 3) |>
+setObsVar(name = "harvested",  columns = 5) |>
+setObsVar(name = "production", columns = 6,
+                               factor  = 0.1)
+```
+:::
+:::
+
+## Archetype 2 — one wide ID
+
+::: {.subtitle}
+an ID variable's values masquerade as headers, with observed variables nested below
+:::
+
+::: {.archetype-tag}
+tabs2shift\$one_wide_id
+:::
+
+::: {.row}
+::: {}
+**Raw input**
+
+```{r}
+#| eval: true
+#| echo: false
+kable(tabs2shift$one_wide_id, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 12)
+```
+:::
+
+::: {}
+**Schema**
+
+```r
+setIDVar(name = "territories", columns = 1) |>
+setIDVar(name = "year",        columns = 3) |>
+setIDVar(name = "commodities", columns = c(4, 6),
+                               rows    = 1) |>
+setObsVar(name = "harvested",  columns = c(4, 6),
+                               top     = 2) |>
+setObsVar(name = "production", columns = c(5, 7),
+                               top     = 2)
+```
+:::
+:::
+
+## Archetype 3 — listed observed variable
+
+::: {.subtitle}
+obs variable names appear as values of an ID column; values share one column
+:::
+
+::: {.archetype-tag}
+tabs2shift\$listed_column
+:::
+
+::: {.row}
+::: {}
+**Raw input**
+
+```{r}
+#| eval: true
+#| echo: false
+kable(tabs2shift$listed_column, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 12)
+```
+:::
+
+::: {}
+**Schema**
+
+```r
+setIDVar(name = "territories", columns = 1) |>
+setIDVar(name = "year",        columns = 2) |>
+setIDVar(name = "commodities", columns = 3) |>
+setObsVar(name = "harvested",  columns = 7,
+                               key   = 6,
+                               value = "harvested") |>
+setObsVar(name = "production", columns = 7,
+                               key   = 6,
+                               value = "production")
+```
+:::
+:::
+
+## Archetype 4 — implicit variable
+
+::: {.subtitle}
+one ID variable is in metadata or filename, not in the table itself
+:::
+
+::: {.archetype-tag}
+tabs2shift\$implicit_variable
+:::
+
+::: {.row}
+::: {}
+**Raw input**
+
+```{r}
+#| eval: true
+#| echo: false
+kable(tabs2shift$implicit_variable, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 12)
+```
+:::
+
+::: {}
+**Schema**
+
+```r
+setCluster(id = "territories",
+           left = 1, top = 4) |>
+setIDVar(name = "territories",
+         value = "unit 1") |>
+setIDVar(name = "year",        columns = 4) |>
+setIDVar(name = "commodities", columns = 1) |>
+setObsVar(name = "harvested",  columns = 2) |>
+setObsVar(name = "production", columns = 3)
+```
+:::
+:::
+
+## Archetype 5 — horizontal clusters
+
+::: {.subtitle}
+the same block repeats side-by-side; cluster ID is the variable that differs
+:::
+
+::: {.archetype-tag}
+tabs2shift\$clusters_horizontal
+:::
+
+**Raw input**
+
+```{r}
+#| eval: true
+#| echo: false
+kable(tabs2shift$clusters_horizontal, format = "html") |>
+  kable_styling(bootstrap_options = "condensed", font_size = 11)
+```
+
+**Schema**
+
+```r
+setCluster(id   = "territories",
+           left = c(1, 6), top = 2) |>
+setIDVar(name = "territories", columns = c(1, 6),
+                               rows    = 2) |>
+setIDVar(name = "year",        columns = c(2, 7)) |>
+setIDVar(name = "commodities", columns = c(1, 6)) |>
+setObsVar(name = "harvested",  columns = c(3, 8)) |>
+setObsVar(name = "production", columns = c(4, 9))
+```
+
+# Mongolia
+
+::: {.tagline}
+from raw NSO file to tidy long table
+:::
+
+**What we'll do, live:**
+
+1. Open the raw NSO livestock CSV with `col_names = FALSE`
+2. Launch `schema_builder()` and click through the variables
+3. Run `reorganise()` — see tidy output
+
+::: {.heads-up}
+We'll keep adding to the script as we work through the remainder of this deck.
+:::
+
+# 2. arealDB
+
+::: {.tagline}
+structure, harmonisation, integration
+:::
+
+## Every asset moves through three stages
+
+::: {.subtitle}
+vocabularies, geometries, tables — same lifecycle
+:::
+
+::: {.row}
+::: {.box .stage}
+[stage 1]{.box-title}
+**raw original**
+
+whatever the source ships — zip, xlsx, shp, pdf
+:::
+
+::: {.arrow}
+→
+:::
+
+::: {.box .stage}
+[stage 2]{.box-title}
+**cleaned**
+
+UTF-8 CSV / GeoPackage; uniform format, original layout preserved
+:::
+
+::: {.arrow}
+→
+:::
+
+::: {.box .stage}
+[stage 3]{.box-title}
+**normalised**
+
+harmonised against gazetteer / ontology; ready to query
+:::
+:::
+
+## The directory layout is the database
+```{.dir-tree}
+<root>/
+  inventory.rds                 metadata index
+  db_info.RData                 version, authors, licence, top level
+
+  vocabularies/
+    stage1/                     raw vocabulary archives
+    stage2/                     UTF-8 CSV: <vName>__<dSeries>.csv
+    stage3/                     <vName>_terms.parquet, <vName>_levels.parquet
+    schemas/                    saved tabshiftr schemas
+    mappings/                   <vName>_<dSeries>.csv: source_label → canonical_id
+
+  geometries/
+    stage1/                     raw geometry archives (zip, gpkg, shp, ...)
+    stage2/                     GeoPackages, named by arealDB convention
+    stage3/                     one gpkg per top-level unit (per nation)
+
+  tables/
+    stage1/<dSeries>/           raw downloaded files, grouped by source
+    stage2/                     UTF-8 CSV copies, named by arealDB convention
+    stage3/                     one .rds per top-level unit, harmonised
+    schemas/                    saved tabshiftr schemas
+```
+
+
+## Two functions per asset: register and normalise
+
+| asset | register | normalise |
+|---|---|---|
+| **vocabulary** | `regVocabulary()` | `normVocabulary()` |
+| **geometry**   | `regGeometry()`   | `normGeometry()`   |
+| **table**      | `regTable()`      | `normTable()`      |
+
+<br>
+
+::: {.row}
+::: {.box .stage}
+[regX()]{.box-title}
+
+Records metadata in `inventory.rds`. Waits for you to place the actual file in stage1 / stage2.
+:::
+
+::: {.box .stage}
+[normX()]{.box-title}
+
+Reads stage2, harmonises against gazetteer / ontology, writes stage3. Vocabularies are normalised first.
+:::
+:::
+
+## Vocabularies: backbone vs. mapping
+
+::: {.subtitle}
+the first contributor sets the canonical IDs; everyone else maps to them
+:::
+
+::: {.row}
+::: {.box}
+[Backbone]{.box-title}
+
+First dataseries registered against a vocabulary.
+
+Defines canonical IDs and class structure.
+
+`normVocabulary()` writes:
+`<vName>_terms.parquet`
+`<vName>_levels.parquet`
+
+*Schema can be term-grain (one row per term) or leaf-grain (one row per leaf, ancestors as columns).*
+:::
+
+::: {.box}
+[Mapping]{.box-title}
+
+Every subsequent contributor.
+
+Source labels are matched against the backbone.
+
+Confirmed mappings persist in:
+`vocabularies/mappings/`
+`<vName>_<dSeries>.csv`
+
+*Unmatched labels open `match_builder()` Shiny app for interactive resolution.*
+:::
+:::
+
+## Geometries: spatial boundaries
+::: {.subtitle}
+one per administrative level
+:::
+
+```r
+regGeometry(...,                # named territory selector, e.g. ADM0 = "Mongolia"
+            gSeries,            # dataseries name (e.g. "gadm")
+            label,              # mapping gazetteer class -> column name
+                                # list(ADM1 = "NAME_1")
+            archive,            # stage1 filename
+                                # "archive.zip|inner.gpkg" for compressed sources
+            [...],
+            overwrite = FALSE)
+```
+<br>
+
+::: {.row}
+::: {.box}
+**Place the file**
+Raw archive → `geometries/stage1/`
+GeoPackage → `geometries/stage2/<filename>`
+:::
+::: {.box}
+**CRS must be EPSG:4326**
+`normGeometry()` harmonises every stage2 file against the gazetteer; writes one stage3 GeoPackage per top-level unit. Unmatched names open `match_builder()`.
+:::
+:::
+
+## Tables: where the schema meets arealDB
+```r
+regTable(...,                 # named territory selector, e.g. ADM0 = "Mongolia"
+         subset = NULL,       # optional label, no underscores; appears in stage2 name
+         dSeries,             # dataseries name for the table
+         gSeries,             # dataseries name for the geometry to join against
+         label,               # gazetteer level: "ADM0", "ADM1", "ADM2"
+         begin, end,          # integer years
+         schema,              # tabshiftr schema (must exist in global env)
+         archive,
+         archiveLink,
+         downloadDate,
+         updateFrequency,
+         diagnose = FALSE,    # test-run reorganise() without saving
+         overwrite = FALSE)
+
+normTable(pattern   = NULL,
+          query     = NULL,        # optional dplyr-style filter
+          ontoMatch = NULL)        # column(s) to match against an ontology, e.g. "animal"
+```
+
+
+# 3. From one country to many
+
+::: {.tagline}
+our Mongolia script in the context of the full GPW pipeline
+:::
+
+## 00_main.R — the orchestrator
+::: {.subtitle}
+boot · vocabularies · global sources · national sources · tie together
+:::
+
+```r
+library(arealDB); library(tabshiftr); library(tidyverse); library(lubridate)
+
+db_path <- "./gld-1km/workflow/01-build_census_database/"
+
+# setup and start database
+source(paste0(db_path, "01_boot.R"))
+
+# build vocabulary basis
+source(paste0(db_path, "02_vocab.R"))
+
+# global / regional dataseries
+source(paste0(db_path, "03_fao.R"))
+source(paste0(db_path, "03_agriwanet.R"))
+source(paste0(db_path, "03_eurostat.R"))
+
+# national dataseries (one file per country)
+source(paste0(db_path, "04_argentina.R"))
+source(paste0(db_path, "04_australia.R"))
+# ... 17 more countries ... and now 04_mongolia.R
+
+# tie everything together
+adb_backup()
+adb_archive(outPath = db_path, compress = FALSE)
+```
+
+
+## 01_boot.R · 02_vocab.R
+::: {.subtitle}
+initialise the database, then bootstrap the vocabularies
+:::
+
+::: {.row}
+::: {}
+**01_boot.R — adb_init()**
+
+```r
+model_version <- "0.8.3"
+authors <- list(
+  cre = list("Steffen Ehrmann"),
+  aut = list(cens = c("Katya Perez Guzman")),
+  ctb = list(cens = c("Ivelina Georgieva"))
+)
+
+adb_init(
+  root    = paste0(db_path, "_censusDB"),
+  version = model_version,
+  licence = "https://creativecommons.org/...",
+  author  = list(
+    cre = authors$cre,
+    aut = authors$aut$cens,
+    ctb = authors$ctb$cens),
+  level   = "ADM0"
+)
+```
+:::
+
+::: {}
+**02_vocab.R — UN gazetteer + GPW ontology**
+
+```r
+# 1. gazetteer (UN M49 geoscheme)
+regDataseries(name = "unsd", ...)
+
+schema_gazetteer_unsd <-
+  setIDVar(name = "global",     columns = 2) |>
+  setIDVar(name = "region",     columns = 4) |>
+  setIDVar(name = "sub_region", columns = 6) |>
+  setObsVar(name = "ADM0",      columns = 9,
+            type = "character")
+
+regVocabulary(name = "gazetteer",
+              dSeries = "unsd",
+              schema = schema_gazetteer_unsd,
+              ...)
+normVocabulary(pattern = "gazetteer__unsd")
+
+# 2. commodity ontology (GPW livestock)
+# same pattern with a different schema
+```
+:::
+:::
+
+::: {.footnote .green}
+Vocabularies first — geometries and tables match against them.
+:::
+
+## Every country file follows the same pattern
+
+::: {.subtitle}
+1. dataseries · 2. geometries · 3. tables
+:::
+
+::: {.step-card}
+::: {.num}
+1
+:::
+::: {.body}
+::: {.label}
+regDataseries()
+:::
+::: {.desc}
+one call per source — geometry provider, statistics agency, etc.
+:::
+:::
+:::
+
+::: {.step-card}
+::: {.num}
+2
+:::
+::: {.body}
+::: {.label}
+regGeometry() ×N + normGeometry()
+:::
+::: {.desc}
+register one geometry per administrative level (ADM0, ADM1, ADM2), then normalise all of them at once
+:::
+:::
+:::
+
+::: {.step-card}
+::: {.num}
+3
+:::
+::: {.body}
+::: {.label}
+regTable() ×N + normTable()
+:::
+::: {.desc}
+register one table per subset (e.g. one per animal); ontoMatch resolves the concept column against the ontology
+:::
+:::
+:::
+
+## End-to-end checklist
+
+::: {.box}
+[Adding a new data source]{.box-title}
+
+1. Find the source, locate the data
+2. Place raw files in `stage1/` subfolders
+3. Inspect raw tables with `View(read_csv(..., col_names = FALSE))`
+4. Write the tabshiftr schema; test with `reorganise()`
+5. `regDataseries()` for every source
+6. `regVocabulary()` if new terms; then `normVocabulary()`
+7. `regGeometry()` — export GeoPackage (EPSG:4326) to `stage2/`
+8. `normGeometry()` — resolve unmatched names in `match_builder`
+9. `regTable()` with `diagnose = TRUE` first
+10. `normTable()` — resolve concepts in `match_builder`
+11. Verify: `readRDS(stage3/<TopUnit>.rds)`
+:::
+
+::: {.footnote .green}
+**Hands-on: pick a country not in the deck and write its `04_*.R`**
+:::
+
+## Common failure modes
+
+::: {.box}
+[Watch out for]{.box-title}
+
+**`regGeometry` / `regTable` errors**
+`regDataseries()` not called first
+
+**Function hangs at readline prompt**
+file not yet in stage1 / stage2 — place it, press a key
+
+**`adb_path` not set**
+new R session; re-run `adb_init()`
+
+**`reorganise()` returns wrong columns**
+schema column numbers don't match `col_names = FALSE` view
+
+**NAs where values expected**
+`na_values` in `setFormat()` doesn't cover actual NA strings
+
+**Unmatched territories**
+label points to wrong column, or CRS isn't EPSG:4326
+
+**Schema works in dev but `normTable` fails**
+stage2 CSV re-saved by Excel — re-export UTF-8
+:::
